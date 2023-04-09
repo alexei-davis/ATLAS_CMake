@@ -1,1 +1,2 @@
 # ATLAS_CMake
+This CMake file is intended for the ROS2 driver for the ATLAS advanced dev kit, but does not work. Current error is that when building the code is unable to link the fusion_client_engine, most likely because it has not been added/created correctly prior to attempting to link the library. I have tried both FetchContent and ExternalProject_Add when adding the fusion_engine_client github repo, however neither have worked with the CMake code in its current form.

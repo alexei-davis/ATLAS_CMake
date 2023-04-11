@@ -1,71 +1,62 @@
-cmake_minimum_required(VERSION 3.8)
-project(point_one_gps_driver)
+cmake_minimum_required(VERSION 3.12)
 
-include(ExternalProject)
+set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
+set(P1_FE_BUILD_EXAMPLES OFF)
+
+project(point_one_gps_driver)
 
 include(FetchContent)
 
-if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  add_compile_options(-Wall -Wextra)
+# Default to C++17
+if(NOT CMAKE_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD 17)
 endif()
+
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  add_compile_options(-Wall -Wextra -Wpedantic)
+endif()
+
+# Specify external project as a target.
+FetchContent_Declare(
+    fusion_engine_client
+    GIT_REPOSITORY https://github.com/PointOneNav/fusion-engine-client.git
+    GIT_TAG origin/master
+)
+FetchContent_Populate(fusion_engine_client)
+
+# add_subdirectory(${fusion_engine_client_SOURCE_DIR})
+
+include_directories(${fusion_engine_client_SOURCE_DIR}/src)
 
 # find dependencies
 find_package(ament_cmake_auto REQUIRED)
-# uncomment the following section in order to fill in
-# further dependencies manually.
-# find_package(<dependency> REQUIRED)
-# Require that dependencies from package.xml be available.
 ament_auto_find_build_dependencies(REQUIRED
   ${${PROJECT_NAME}_BUILD_DEPENDS}
   ${${PROJECT_NAME}_BUILDTOOL_DEPENDS}
 )
 
+# Replace the SRC with the file names in the airacingtech CMAKE
 set(${PROJECT_NAME}_SRC
   src/point_one_gps_node.cpp
 )
 
-# Create this project as an executable.
+# Create this project as a library.
+ament_auto_add_library(${PROJECT_NAME} SHARED
+  ${${PROJECT_NAME}_SRC}
+)
+
+# Register this project as a component node.
+set(${PROJECT_NAME}_NODE_PLUGIN_CLASS "point_one::fusion_engine::ros_driver::FusionEngineRosDriverNode")
+# the rclcpp component registration with the executable from the airacingtech CMAKE
 ament_auto_add_executable(${PROJECT_NAME}_node_exe
   ${${PROJECT_NAME}_SRC}
 )
 
-# Set location to store external project.
-set(EXTERNAL_INSTALL_LOCATION 
-  ${CMAKE_BINARY_DIR}/p1_fusion_engine_client
-)
-
-# Specify external project as a target.
-ExternalProject_Add(project_p1_fusion_engine_client
-  GIT_REPOSITORY https://github.com/PointOneNav/fusion-engine-client.git
-  CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${EXTERNAL_INSTALL_LOCATION}
-  PREFIX ${EXTERNAL_INSTALL_LOCATION}
-)
-
-# Attempted to make CMake File work with FetchContent instead of ExternalProject_Add and have not been successful
-# with either method
-#FetchContent_Declare(
-#    fusion_engine_client
-#    GIT_REPOSITORY https://github.com/PointOneNav/fusion-engine-client.git
-#    GIT_TAG origin/master
-#)
-#FetchContent_Populate(fusion_engine_client)
-
-# Include header files required for external project.
-include_directories(${EXTERNAL_INSTALL_LOCATION}/include)
-
-# Append shared library path to dynamic linker in rpath (runtime search path).
-SET(CMAKE_EXE_LINKER_FLAGS 
-  "${CMAKE_EXE_LINKER_FLAGS} -Wl,-rpath -Wl,${EXTERNAL_INSTALL_LOCATION}/lib"
-)
-
-# Library is not built until there is a dependency.
-add_dependencies(${PROJECT_NAME}_node_exe project_p1_fusion_engine_client)
-
-# Link point_one_gps node to fusion_engine_client library.
-# added a line to attempt to link fusion_engine_client but during building I get an error with this line
+# Link to fusion_engine_client library.
 target_link_libraries(${PROJECT_NAME} fusion_engine_client)
 target_link_libraries(${PROJECT_NAME}_node_exe fusion_engine_client)
 
+# Change the BUILD_TESTING with the airacingtech CMAKE 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   # the following line skips the linter which checks for copyrights
